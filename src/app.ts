@@ -1,6 +1,9 @@
 const len = 3;
 const step = 0.01;
-let time = 0;
+let time = -1;
+let sign = 1;
+
+const FPS = 30;
 
 var canvas: HTMLCanvasElement;
 
@@ -76,7 +79,7 @@ class Complex {
 
 window.onload = () => {
     canvas = <HTMLCanvasElement>document.getElementById("plane");
-    setInterval(render, 100)
+    setInterval(render, 1000 / FPS)
 }
 
 /*
@@ -139,10 +142,12 @@ function render() {
     fn = (z: Complex) => z.exp(new Complex(0, 1));
 
     ctx.strokeStyle = "rgb(0, 127, 255)";
-    animate(new Complex(0, -1), new Complex(0, 1), time, fn)
+    animate(new Complex(0, 0), new Complex(Math.PI * 2, 0), time, fn)
 
-    time += 0.05;
-    if (time > 2) time = 0;
+    time += 0.05 * sign;
+    if (time >= 2) sign = -1;
+    if (time < -1) sign = 1;
+
 }
 
 function lerp(a: number, b: number, t: number) {
@@ -173,6 +178,7 @@ function animate(z0: Complex, z1: Complex, t: number, fn: (z: Complex) => Comple
     const ctx = canvas.getContext('2d');
     ctx.beginPath();
 
+    t = Math.max(0, Math.min(t, 1));
     ctx.moveTo(...pixel(fn(z0)))
     for (let s = step; s <= 1; s += step) {
         const [r0, i0] = z0.comps();
@@ -187,6 +193,8 @@ function animate(z0: Complex, z1: Complex, t: number, fn: (z: Complex) => Comple
 
         ctx.lineTo(...pixel(zd))
     }
+    ctx.moveTo(...pixel(fn(z1)))
+
     ctx.stroke();
 }
 
