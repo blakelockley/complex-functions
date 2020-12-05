@@ -16,6 +16,10 @@ body {
   align-items: center;
 }
 
+canvas {
+  box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.75);
+}
+
 code {
   font-family: "Source Code Pro", monospace;
 }
@@ -24,4 +28,5 @@ code {
   text-align: center;
   font-size: 32px;
   padding: 10px;
+  margin-bottom: 20px;
 }
