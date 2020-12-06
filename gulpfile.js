@@ -3,14 +3,14 @@ const ts = require("gulp-typescript");
 var browserSync = require("browser-sync").create();
 
 gulp.task("compile", function () {
-    return gulp.src("src/app.ts")
-        .pipe(ts())
+    return gulp.src("src/*.ts")
+        .pipe(ts({ module: "es6" }))
         .pipe(gulp.dest("dest/static/js"))
         .pipe(browserSync.stream());
 });
 
 gulp.task("copy", function () {
-    return gulp.src("src/**/!(app.ts)")
+    return gulp.src("src/**/!(*.ts)")
         .pipe(gulp.dest("dest"))
         .pipe(browserSync.stream());
 });
