@@ -1,203 +1,122 @@
-const len = 3;
-const step = 0.01;
-let time = -1;
-let sign = 1;
+import { complex, imag, mul, exp, real, I } from "./complex.js";
 
-const FPS = 30;
+const REFRESH = 30;   // Animation resfresh rate (times per second)
+
+const UNIT_SIZE = 100; // Pixel size of a unit
+const HALF_AXIS_UNITS = 2; // How many units in half of an axis
+const HALF_AXIS_SIZE = UNIT_SIZE * HALF_AXIS_UNITS;
+
+const EDGE = HALF_AXIS_SIZE;
+
+var t = 0;
+var img = new Image();
 
 var canvas: HTMLCanvasElement;
+var src: ImageData, dst: ImageData;
 
-class Complex {
-    real: number;
-    imag: number;
-
-    constructor(real: number, imag: number) {
-        this.real = real;
-        this.imag = imag;
-    }
-
-    comps(): [number, number] {
-        return [this.real, this.imag];
-    }
-
-    magnitude(): number {
-        return Math.sqrt(this.multiply(this.conjugate()).real);
-    }
-
-    arg(): number {
-        return Math.atan(this.imag / this.real);
-    }
-
-    conjugate(): Complex {
-        return new Complex(this.real, -this.imag);
-    }
-
-    scale(scalar: number): Complex {
-        const [a, b] = this.comps();
-        return new Complex(a * scalar, b * scalar);
-    }
-
-    multiply(other: Complex): Complex {
-        const [a, b] = this.comps();
-        const [c, d] = other.comps();
-
-        return new Complex((a * c) - (b * d), (a * d) + (c * b));
-    }
-
-    expn(scalar: number): Complex {
-        let a = Math.pow(this.magnitude(), scalar)
-        let b = this.arg() * scalar;
-
-        let real = a * Math.cos(b)
-        let imag = a * Math.sin(b)
-
-        return new Complex(real, imag);
-    }
-
-    exp(other: Complex): Complex {
-        const [c, d] = other.comps();
-
-        const modulus = Math.pow(this.magnitude(), c) * Math.exp(-d * this.arg());
-        const theta = (c * this.arg()) + (d * Math.log(this.magnitude()));
-
-        const real = modulus * Math.cos(theta);
-        const imag = modulus * Math.sin(theta);
-
-        return new Complex(real, imag);
-    }
-
-    toString(): string {
-        const r = Math.round(this.real * 1000) / 1000;
-        const i = Math.round(this.imag * 1000) / 1000;
-
-        if (r === 0) return `${i}i`;
-        if (i === 0) return `${r}`;
-
-        return `${r} + ${i}i`;
-    }
+var fn: (z: complex, t: number) => complex = (z: complex) => {
+    return exp(z, [Math.log(t), 0])
 }
 
 window.onload = () => {
     canvas = <HTMLCanvasElement>document.getElementById("plane");
-    setInterval(render, 1000 / FPS)
-}
+    const ctx = canvas.getContext('2d');
 
-/*
- * Map complex value to canvas coords.
- */
-function pixel(z: Complex): [number, number] {
-    const x = ((z.real + len) / (len * 2)) * canvas.width;
-    const y = ((-z.imag + len) / (len * 2)) * canvas.height;
+    img.src = "./static/img/piggy.png"
+    img.onload = () => {
+        ctx.drawImage(img, 0, 0);
 
-    return [x, y];
+        src = new ImageData(canvas.width, canvas.height);
+        src.data.set(ctx.getImageData(0, 0, canvas.width, canvas.height).data);
+
+        dst = new ImageData(src.width, src.height);
+
+        setInterval(render, 1000 / REFRESH);
+    };
 }
 
 function render() {
     const ctx = canvas.getContext('2d');
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     ctx.fillStyle = "rgb(0, 0, 0)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    dst.data.set(ctx.getImageData(0, 0, canvas.width, canvas.height).data);
 
-    // Horizontal axes
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgb(0, 255, 0)";
-    for (let x = -1; x <= 1; x += 0.2) {
-        let z0 = new Complex(x, -1);
-        let z1 = new Complex(x, 1);
+    for (var x = 0; x < 400; x++) {
+        for (var y = 0; y < 400; y++) {
+            const colour = rgb(...getPixel(src, x, y));
 
-        line(z0, z1);
-        line(z0, z1, (z) => z.multiply(new Complex(0, 1)));
+            const a = (x - 200) / UNIT_SIZE;
+            const b = (y - 200) / UNIT_SIZE;
+
+            const z: complex = [a, b];
+            const w = fn(z, t);
+
+            const nx = Math.round(real(w) * UNIT_SIZE + 200);
+            const ny = Math.round(-imag(w) * UNIT_SIZE + 200);
+
+            if ((nx < 0 || nx >= 400) || (ny < 0 || ny >= 400))
+                continue;
+
+            setPixel(dst, nx, ny, colour);
+        }
     }
 
-    ctx.strokeStyle = "rgb(255, 0, 0)";
-    for (let x = -len; x <= len; x += 1) {
-        let z0 = new Complex(x, -len);
-        let z1 = new Complex(x, len);
+    ctx.putImageData(dst, 0, 0);
+    t += 0.025;
 
-        line(z0, z1);
-        line(z0, z1, (z) => z.multiply(new Complex(0, 1)));
-    }
-
-
-    // Main axes
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "rgb(255, 255, 255)";
-
-    let z0 = new Complex(0, -len);
-    let z1 = new Complex(0, len);
-    line(z0, z1);
-
-    z0 = new Complex(-len, 0);
-    z1 = new Complex(len, 0);
-    line(z0, z1);
-
-    var fn = (z: Complex) => z.exp(new Complex(1, 1));
-
-    // ctx.strokeStyle = "rgb(0, 127, 255)";
-    // line(new Complex(0, 0), new Complex(10, 10), fn)
-
-    fn = (z: Complex) => z.exp(new Complex(0, 1));
-
-    ctx.strokeStyle = "rgb(0, 127, 255)";
-    animate(new Complex(0, 0), new Complex(Math.PI * 2, 0), time, fn)
-
-    time += 0.05 * sign;
-    if (time >= 2) sign = -1;
-    if (time < -1) sign = 1;
-
+    if (t > Math.E) t = 0
 }
 
-function lerp(a: number, b: number, t: number) {
-    return a + (b - a) * t;
+function drawLines(data) {
+
+    const black = rgb(0, 0, 0);
+    const white = rgb(255, 255, 255);
+    const primary = rgb(82, 127, 135);
+    const secondary = rgb(214, 186, 129);
+
+    // x-axis (micro)
+    for (var u = EDGE - UNIT_SIZE; u < EDGE + UNIT_SIZE; u += UNIT_SIZE / 5)
+        for (var x = 100; x < 300; x++)
+            setPixel(data, x, u, secondary);
+
+    // y-axis (micro)
+    for (var u = EDGE - UNIT_SIZE; u < EDGE + UNIT_SIZE; u += UNIT_SIZE / 5)
+        for (var y = 100; y < 300; y++)
+            setPixel(data, u, y, secondary);
+
+    // x-axis (sub)
+    for (var u = UNIT_SIZE; u < 2 * EDGE; u += UNIT_SIZE)
+        for (var x = 0; x < 400; x++)
+            setPixel(data, x, u, primary);
+
+    // y-axis (sub)
+    for (var u = UNIT_SIZE; u < 2 * EDGE; u += UNIT_SIZE)
+        for (var y = 0; y < 400; y++)
+            setPixel(data, u, y, primary);
+
+    // x-axis
+    for (var x = 0; x < 400; x++)
+        for (var d = -1; d <= 1; d++)
+            setPixel(data, x, 200 + d, white);
+
+    // y-axis
+    for (var y = 0; y < 400; y++)
+        for (var d = -1; d <= 1; d++)
+            setPixel(data, 200 + d, y, white);
 }
 
-function line(z0: Complex, z1: Complex, fn: (z: Complex) => Complex = id) {
-    let t = 0;
-    const ctx = canvas.getContext('2d');
-    ctx.beginPath();
-
-    let w = fn(z0);
-    ctx.moveTo(...pixel(w))
-
-    for (let t = 0; t <= 1; t += step) {
-        const [r0, i0] = z0.comps();
-        const [r1, i1] = z1.comps();
-        const z = new Complex(lerp(r0, r1, t), lerp(i0, i1, t));
-
-        w = fn(z);
-        ctx.lineTo(...pixel(w))
-    }
-    ctx.stroke();
+function rgb(r: number, g: number, b: number): Uint8Array {
+    return Uint8Array.from([r, g, b])
 }
 
-
-function animate(z0: Complex, z1: Complex, t: number, fn: (z: Complex) => Complex = id) {
-    const ctx = canvas.getContext('2d');
-    ctx.beginPath();
-
-    t = Math.max(0, Math.min(t, 1));
-    ctx.moveTo(...pixel(fn(z0)))
-    for (let s = step; s <= 1; s += step) {
-        const [r0, i0] = z0.comps();
-        const [r1, i1] = z1.comps();
-
-        const z = new Complex(lerp(r0, r1, s), lerp(i0, i1, s));
-        const w = fn(z);
-
-        const [zr, zi] = z.comps();
-        const [wr, wi] = w.comps();
-        const zd = new Complex(lerp(zr, wr, t), lerp(zi, wi, t));
-
-        ctx.lineTo(...pixel(zd))
-    }
-    ctx.moveTo(...pixel(fn(z1)))
-
-    ctx.stroke();
+function setPixel(d: ImageData, x: number, y: number, colour: Uint8Array) {
+    const idx = 4 * (x * d.width + y);
+    d.data.set(colour, idx);
 }
 
-function id(z: Complex): Complex {
-    return z;
+function getPixel(d: ImageData, x: number, y: number): [number, number, number] {
+    const idx = 4 * (x * d.width + y);
+    return [d.data[idx], d.data[idx + 1], d.data[idx + 2]];
 }
