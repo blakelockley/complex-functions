@@ -1,10 +1,6 @@
 export type complex = [number, number];
-export const I: complex = [0, 1];
 
-// Constructor
-export function init(a: number, b: number): complex {
-    return [a, b]
-}
+export const I: complex = [0, 1];
 
 // Components
 export function real(z: complex): number {
