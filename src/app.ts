@@ -15,24 +15,19 @@ var canvas: HTMLCanvasElement;
 var src: ImageData, dst: ImageData;
 
 var fn: (z: complex, t: number) => complex = (z: complex) => {
-    return exp(z, [Math.log(t), 0])
+    return exp(z, [1, 1])
 }
 
 window.onload = () => {
     canvas = <HTMLCanvasElement>document.getElementById("plane");
+    setInterval(render, 1000 / REFRESH);
+
     const ctx = canvas.getContext('2d');
 
-    img.src = "./static/img/piggy.png"
-    img.onload = () => {
-        ctx.drawImage(img, 0, 0);
+    src = new ImageData(canvas.width, canvas.height);
+    drawLines(src);
 
-        src = new ImageData(canvas.width, canvas.height);
-        src.data.set(ctx.getImageData(0, 0, canvas.width, canvas.height).data);
-
-        dst = new ImageData(src.width, src.height);
-
-        setInterval(render, 1000 / REFRESH);
-    };
+    dst = new ImageData(src.width, src.height);
 }
 
 function render() {
@@ -54,7 +49,7 @@ function render() {
             const w = fn(z, t);
 
             const nx = Math.round(real(w) * UNIT_SIZE + 200);
-            const ny = Math.round(-imag(w) * UNIT_SIZE + 200);
+            const ny = Math.round(imag(w) * UNIT_SIZE + 200);
 
             if ((nx < 0 || nx >= 400) || (ny < 0 || ny >= 400))
                 continue;
@@ -69,8 +64,21 @@ function render() {
     if (t > Math.E) t = 0
 }
 
-function drawLines(data) {
+// "./static/img/piggy.png"
+function loadImage(url) {
+    const ctx = canvas.getContext('2d');
 
+    img.src = url;
+    img.onload = () => {
+        ctx.drawImage(img, 0, 0);
+        src = new ImageData(canvas.width, canvas.height);
+
+        src.data.set(ctx.getImageData(0, 0, canvas.width, canvas.height).data);
+        dst = new ImageData(src.width, src.height);
+    };
+}
+
+function drawLines(data) {
     const black = rgb(0, 0, 0);
     const white = rgb(255, 255, 255);
     const primary = rgb(82, 127, 135);
